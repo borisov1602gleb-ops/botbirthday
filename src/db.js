@@ -34,6 +34,14 @@ db.exec(`
     text TEXT NOT NULL,
     PRIMARY KEY (chat_id, idx)
   );
+
+  CREATE TABLE IF NOT EXISTS chat_members (
+    chat_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    first_name TEXT,
+    username TEXT,
+    PRIMARY KEY (chat_id, user_id)
+  );
 `);
 
 function addBirthday(chatId, name, day, month, year) {
@@ -99,6 +107,17 @@ function resetGreetingOverride(chatId, idx) {
   return info.changes > 0;
 }
 
+function upsertChatMember(chatId, userId, firstName, username) {
+  db.prepare(
+    `INSERT INTO chat_members (chat_id, user_id, first_name, username) VALUES (?, ?, ?, ?)
+     ON CONFLICT(chat_id, user_id) DO UPDATE SET first_name = excluded.first_name, username = excluded.username`
+  ).run(chatId, userId, firstName || null, username || null);
+}
+
+function listChatMembers(chatId) {
+  return db.prepare('SELECT * FROM chat_members WHERE chat_id = ?').all(chatId);
+}
+
 module.exports = {
   addBirthday,
   listBirthdays,
@@ -109,4 +128,6 @@ module.exports = {
   getGreetingOverrides,
   setGreetingOverride,
   resetGreetingOverride,
+  upsertChatMember,
+  listChatMembers,
 };

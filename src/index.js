@@ -23,9 +23,19 @@ const HELP_TEXT = `Я напоминаю о днях рождения сотру
 /greetings — посмотреть тексты поздравлений (в день ДР бот выбирает один случайно)
 /setgreeting НОМЕР текст — изменить текст поздравления под этим номером
 /resetgreeting НОМЕР — вернуть исходный текст поздравления
+/members — кого бот сейчас упомянёт вместе с напоминанием
 /help — эта справка
 
-Добавляйте бота в общий чат команды — напоминания будут приходить туда же.`;
+Добавляйте бота в общий чат команды — напоминания будут приходить туда же.
+Чтобы напоминания упоминали всех участников чата, у бота должен быть выключен
+режим приватности (Group Privacy) в настройках @BotFather.`;
+
+bot.use((ctx, next) => {
+  if (ctx.from && !ctx.from.is_bot && ctx.chat && ctx.chat.type !== 'private') {
+    db.upsertChatMember(ctx.chat.id, ctx.from.id, ctx.from.first_name, ctx.from.username);
+  }
+  return next();
+});
 
 bot.start((ctx) => ctx.reply(HELP_TEXT));
 bot.help((ctx) => ctx.reply(HELP_TEXT));
@@ -148,6 +158,17 @@ bot.command('resetgreeting', (ctx) => {
   );
 });
 
+bot.command('members', (ctx) => {
+  const members = db.listChatMembers(ctx.chat.id);
+  if (members.length === 0) {
+    return ctx.reply(
+      'Пока никого не отследил — участники добавляются в список автоматически, когда пишут в этом чате. Если список долго пустой, проверьте, что у бота выключен режим приватности (Group Privacy) в @BotFather, и что бот заново добавлен в чат после этой настройки.'
+    );
+  }
+  const names = members.map((m) => (m.username ? `@${m.username}` : m.first_name || 'без имени'));
+  ctx.reply(`Вместе с напоминанием будут упомянуты (${members.length}): ${names.join(', ')}`);
+});
+
 const BOT_COMMANDS = [
   { command: 'add', description: 'Добавить сотрудника: Имя Фамилия ДД.ММ.ГГГГ' },
   { command: 'list', description: 'Показать все сохранённые дни рождения' },
@@ -156,6 +177,7 @@ const BOT_COMMANDS = [
   { command: 'greetings', description: 'Показать тексты поздравлений' },
   { command: 'setgreeting', description: 'Изменить текст поздравления по номеру' },
   { command: 'resetgreeting', description: 'Вернуть исходный текст поздравления' },
+  { command: 'members', description: 'Кого бот упомянёт вместе с напоминанием' },
   { command: 'help', description: 'Справка по командам' },
 ];
 

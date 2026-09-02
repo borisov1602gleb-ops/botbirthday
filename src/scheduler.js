@@ -5,6 +5,17 @@ const { randomGreeting } = require('./greetings');
 
 const TZ = process.env.TZ || 'Europe/Moscow';
 
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildMentions(members) {
+  if (members.length === 0) return null;
+  return members
+    .map((m) => `<a href="tg://user?id=${m.user_id}">${escapeHtml(m.first_name || 'участник')}</a>`)
+    .join(' ');
+}
+
 async function checkAndSendReminders(bot) {
   const today = todayInTZ(TZ);
   const in3Days = addDays(today, 3);
@@ -13,6 +24,7 @@ async function checkAndSendReminders(bot) {
   for (const chatId of db.getAllChats()) {
     const birthdays = db.listBirthdays(chatId);
     const overrides = db.getGreetingOverrides(chatId);
+    const mentions = buildMentions(db.listChatMembers(chatId));
 
     for (const b of birthdays) {
       const isToday = b.day === today.day && b.month === today.month;
@@ -21,6 +33,9 @@ async function checkAndSendReminders(bot) {
       if (isToday && !db.wasReminderSent(b.id, 'today', sentOn)) {
         const years = age(b.year, today.year);
         await bot.telegram.sendMessage(chatId, randomGreeting(b.name, years, overrides));
+        if (mentions) {
+          await bot.telegram.sendMessage(chatId, mentions, { parse_mode: 'HTML' });
+        }
         db.markReminderSent(chatId, b.id, 'today', sentOn);
       }
 
@@ -29,6 +44,9 @@ async function checkAndSendReminders(bot) {
           chatId,
           `📅 Через 3 дня (${formatDate(b.day, b.month)}) день рождения у ${b.name}.`
         );
+        if (mentions) {
+          await bot.telegram.sendMessage(chatId, mentions, { parse_mode: 'HTML' });
+        }
         db.markReminderSent(chatId, b.id, 'soon', sentOn);
       }
     }
