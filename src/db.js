@@ -27,6 +27,13 @@ db.exec(`
     sent_on TEXT NOT NULL,
     PRIMARY KEY (birthday_id, kind, sent_on)
   );
+
+  CREATE TABLE IF NOT EXISTS greeting_overrides (
+    chat_id INTEGER NOT NULL,
+    idx INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (chat_id, idx)
+  );
 `);
 
 function addBirthday(chatId, name, day, month, year) {
@@ -69,6 +76,29 @@ function markReminderSent(chatId, birthdayId, kind, sentOn) {
   ).run(chatId, birthdayId, kind, sentOn);
 }
 
+function getGreetingOverrides(chatId) {
+  const rows = db
+    .prepare('SELECT idx, text FROM greeting_overrides WHERE chat_id = ?')
+    .all(chatId);
+  const map = {};
+  for (const row of rows) map[row.idx] = row.text;
+  return map;
+}
+
+function setGreetingOverride(chatId, idx, text) {
+  db.prepare(
+    `INSERT INTO greeting_overrides (chat_id, idx, text) VALUES (?, ?, ?)
+     ON CONFLICT(chat_id, idx) DO UPDATE SET text = excluded.text`
+  ).run(chatId, idx, text);
+}
+
+function resetGreetingOverride(chatId, idx) {
+  const info = db
+    .prepare('DELETE FROM greeting_overrides WHERE chat_id = ? AND idx = ?')
+    .run(chatId, idx);
+  return info.changes > 0;
+}
+
 module.exports = {
   addBirthday,
   listBirthdays,
@@ -76,4 +106,7 @@ module.exports = {
   getAllChats,
   wasReminderSent,
   markReminderSent,
+  getGreetingOverrides,
+  setGreetingOverride,
+  resetGreetingOverride,
 };

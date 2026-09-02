@@ -20,10 +20,15 @@ const TEMPLATES = [
   '🥂 Сегодня отличный повод собраться и поздравить {name} с днём рождения{age}. Желаем всего самого светлого и доброго: здоровья, вдохновения, интересных проектов и много поводов для радости в кругу коллег и близких!',
 ];
 
-function randomGreeting(name, years) {
+function applyPlaceholders(template, name, years) {
   const ageText = years ? `, исполняется ${years} лет` : '';
-  const template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
   return template.split('{name}').join(name).split('{age}').join(ageText);
 }
 
-module.exports = { randomGreeting };
+function randomGreeting(name, years, overrides = {}) {
+  const idx = Math.floor(Math.random() * TEMPLATES.length);
+  const template = overrides[idx] || TEMPLATES[idx];
+  return applyPlaceholders(template, name, years);
+}
+
+module.exports = { randomGreeting, applyPlaceholders, TEMPLATES };

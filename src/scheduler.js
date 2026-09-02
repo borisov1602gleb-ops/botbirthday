@@ -12,6 +12,7 @@ async function checkAndSendReminders(bot) {
 
   for (const chatId of db.getAllChats()) {
     const birthdays = db.listBirthdays(chatId);
+    const overrides = db.getGreetingOverrides(chatId);
 
     for (const b of birthdays) {
       const isToday = b.day === today.day && b.month === today.month;
@@ -19,7 +20,7 @@ async function checkAndSendReminders(bot) {
 
       if (isToday && !db.wasReminderSent(b.id, 'today', sentOn)) {
         const years = age(b.year, today.year);
-        await bot.telegram.sendMessage(chatId, randomGreeting(b.name, years));
+        await bot.telegram.sendMessage(chatId, randomGreeting(b.name, years, overrides));
         db.markReminderSent(chatId, b.id, 'today', sentOn);
       }
 

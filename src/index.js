@@ -3,6 +3,7 @@ const { Telegraf } = require('telegraf');
 const db = require('./db');
 const { parseDate, formatDate } = require('./dates');
 const { startScheduler, checkAndSendReminders } = require('./scheduler');
+const { TEMPLATES } = require('./greetings');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -19,6 +20,9 @@ const HELP_TEXT = `Я напоминаю о днях рождения сотру
 /list — список всех сохранённых дней рождения
 /remove ID — удалить запись (ID смотрите в /list)
 /today — у кого сегодня день рождения
+/greetings — посмотреть тексты поздравлений (в день ДР бот выбирает один случайно)
+/setgreeting НОМЕР текст — изменить текст поздравления под этим номером
+/resetgreeting НОМЕР — вернуть исходный текст поздравления
 /help — эта справка
 
 Добавляйте бота в общий чат команды — напоминания будут приходить туда же.`;
@@ -88,6 +92,60 @@ bot.command('today', (ctx) => {
   }
 
   ctx.reply('Сегодня день рождения у: ' + matches.map((b) => b.name).join(', '));
+});
+
+bot.command('greetings', (ctx) => {
+  const overrides = db.getGreetingOverrides(ctx.chat.id);
+  const lines = TEMPLATES.map((t, i) => {
+    const text = overrides[i] || t;
+    const marker = overrides[i] ? ' (изменено)' : '';
+    return `${i + 1}${marker}: ${text}`;
+  });
+  ctx.reply(
+    'Тексты поздравлений на день рождения (бот в день ДР выбирает один случайно):\n\n' +
+      lines.join('\n\n') +
+      '\n\nИзменить: /setgreeting НОМЕР текст (используйте {name} для имени, {age} — для возраста)\nВернуть исходный: /resetgreeting НОМЕР'
+  );
+});
+
+bot.command('setgreeting', (ctx) => {
+  const text = ctx.message.text.replace(/^\/setgreeting(@\w+)?\s*/, '').trim();
+  const match = /^(\d{1,2})\s+([\s\S]+)$/.exec(text);
+
+  if (!match) {
+    return ctx.reply(
+      'Формат: /setgreeting НОМЕР текст\nПример: /setgreeting 3 Поздравляем с днём рождения, {name}! Желаем всего наилучшего!'
+    );
+  }
+
+  const idx = Number(match[1]) - 1;
+  if (idx < 0 || idx >= TEMPLATES.length) {
+    return ctx.reply(`Номер должен быть от 1 до ${TEMPLATES.length}. Список: /greetings`);
+  }
+
+  const newText = match[2].trim();
+  if (!newText.includes('{name}')) {
+    return ctx.reply('В тексте обязательно должно быть {name} — туда подставится имя сотрудника.');
+  }
+
+  db.setGreetingOverride(ctx.chat.id, idx, newText);
+  ctx.reply(`Поздравление №${idx + 1} обновлено. Посмотреть все: /greetings`);
+});
+
+bot.command('resetgreeting', (ctx) => {
+  const arg = ctx.message.text.replace(/^\/resetgreeting(@\w+)?\s*/, '').trim();
+  const idx = Number(arg) - 1;
+
+  if (!arg || Number.isNaN(idx) || idx < 0 || idx >= TEMPLATES.length) {
+    return ctx.reply(`Формат: /resetgreeting НОМЕР (от 1 до ${TEMPLATES.length})`);
+  }
+
+  const removed = db.resetGreetingOverride(ctx.chat.id, idx);
+  ctx.reply(
+    removed
+      ? `Поздравление №${idx + 1} возвращено к исходному тексту.`
+      : `Поздравление №${idx + 1} не было изменено.`
+  );
 });
 
 bot.launch().then(() => {
