@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const db = require('./db');
 const { todayInTZ, addDays, isoDate, formatDate, age } = require('./dates');
+const { randomGreeting } = require('./greetings');
 
 const TZ = process.env.TZ || 'Europe/Moscow';
 
@@ -18,11 +19,7 @@ async function checkAndSendReminders(bot) {
 
       if (isToday && !db.wasReminderSent(b.id, 'today', sentOn)) {
         const years = age(b.year, today.year);
-        const yearsText = years ? ` (исполняется ${years})` : '';
-        await bot.telegram.sendMessage(
-          chatId,
-          `🎉 Сегодня день рождения у ${b.name}${yearsText}! Не забудьте поздравить.`
-        );
+        await bot.telegram.sendMessage(chatId, randomGreeting(b.name, years));
         db.markReminderSent(chatId, b.id, 'today', sentOn);
       }
 
