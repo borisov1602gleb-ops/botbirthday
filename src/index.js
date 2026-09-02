@@ -148,8 +148,20 @@ bot.command('resetgreeting', (ctx) => {
   );
 });
 
+const BOT_COMMANDS = [
+  { command: 'add', description: 'Добавить сотрудника: Имя Фамилия ДД.ММ.ГГГГ' },
+  { command: 'list', description: 'Показать все сохранённые дни рождения' },
+  { command: 'remove', description: 'Удалить запись по ID (см. /list)' },
+  { command: 'today', description: 'У кого сегодня день рождения' },
+  { command: 'greetings', description: 'Показать тексты поздравлений' },
+  { command: 'setgreeting', description: 'Изменить текст поздравления по номеру' },
+  { command: 'resetgreeting', description: 'Вернуть исходный текст поздравления' },
+  { command: 'help', description: 'Справка по командам' },
+];
+
 bot.launch().then(() => {
   console.log('Бот запущен.');
+  bot.telegram.setMyCommands(BOT_COMMANDS);
   startScheduler(bot);
 });
 
