@@ -65,6 +65,13 @@ function removeBirthday(chatId, id) {
   return info.changes > 0;
 }
 
+// Ищет по подстроке в имени без учёта регистра (JS toLowerCase — корректно для кириллицы,
+// в отличие от SQLite LIKE/COLLATE NOCASE, которые понимают только ASCII).
+function findBirthdaysByName(chatId, query) {
+  const q = query.trim().toLowerCase();
+  return listBirthdays(chatId).filter((b) => b.name.toLowerCase().includes(q));
+}
+
 function getAllChats() {
   return db.prepare('SELECT DISTINCT chat_id FROM birthdays').all().map((r) => r.chat_id);
 }
@@ -122,6 +129,7 @@ module.exports = {
   addBirthday,
   listBirthdays,
   removeBirthday,
+  findBirthdaysByName,
   getAllChats,
   wasReminderSent,
   markReminderSent,

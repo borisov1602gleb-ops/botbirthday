@@ -27,7 +27,7 @@ const HELP_TEXT = `Я напоминаю о днях рождения сотру
 /add Имя Фамилия ДД.ММ.ГГГГ — добавить сотрудника (год можно не указывать: ДД.ММ)
 /import — добавить сразу несколько (каждый с новой строки после команды)
 /list — список всех сохранённых дней рождения
-/remove ID — удалить запись (ID смотрите в /list)
+/remove Имя — удалить запись (по имени или части имени)
 /today — у кого сегодня день рождения
 /greetings — посмотреть тексты поздравлений (в день ДР бот выбирает один случайно)
 /setgreeting НОМЕР текст — изменить текст поздравления под этим номером
@@ -78,10 +78,8 @@ bot.command('add', (ctx) => {
   }
 
   const { name, parsed } = result;
-  const id = db.addBirthday(ctx.chat.id, name, parsed.day, parsed.month, parsed.year);
-  ctx.reply(
-    `Добавлено: ${name} — ${formatDate(parsed.day, parsed.month, parsed.year)} (ID ${id})`
-  );
+  db.addBirthday(ctx.chat.id, name, parsed.day, parsed.month, parsed.year);
+  ctx.reply(`Добавлено: ${name} — ${formatDate(parsed.day, parsed.month, parsed.year)}`);
 });
 
 bot.command('import', (ctx) => {
@@ -130,23 +128,35 @@ bot.command('list', (ctx) => {
     (a, b) => daysUntil(today, a) - daysUntil(today, b)
   );
 
-  const lines = sorted.map((b) => {
+  const lines = sorted.map((b, i) => {
     const days = daysUntil(today, b);
     const daysText = days === 0 ? 'сегодня!' : `через ${days} дн.`;
-    return `#${b.id} — ${b.name} — ${formatDate(b.day, b.month, b.year)} (${daysText}${ageLabel(today, b)})`;
+    return `${i + 1}. ${b.name} — ${formatDate(b.day, b.month, b.year)} (${daysText}${ageLabel(today, b)})`;
   });
   ctx.reply(lines.join('\n'));
 });
 
 bot.command('remove', (ctx) => {
-  const arg = ctx.message.text.replace(/^\/remove(@\w+)?\s*/, '').trim();
-  const id = Number(arg);
-  if (!arg || Number.isNaN(id)) {
-    return ctx.reply('Формат: /remove ID (номер записи из /list)');
+  const query = ctx.message.text.replace(/^\/remove(@\w+)?\s*/, '').trim();
+  if (!query) {
+    return ctx.reply('Формат: /remove Имя (или часть имени)\nПример: /remove Иванов');
   }
 
-  const removed = db.removeBirthday(ctx.chat.id, id);
-  ctx.reply(removed ? `Запись #${id} удалена.` : `Запись #${id} не найдена.`);
+  const matches = db.findBirthdaysByName(ctx.chat.id, query);
+
+  if (matches.length === 0) {
+    return ctx.reply(`Никого не нашёл по «${query}». Посмотреть весь список: /list`);
+  }
+
+  if (matches.length > 1) {
+    const names = matches.map((m) => m.name).join(', ');
+    return ctx.reply(
+      `Нашёл несколько подходящих: ${names}. Уточните имя точнее, чтобы удалить нужного.`
+    );
+  }
+
+  db.removeBirthday(ctx.chat.id, matches[0].id);
+  ctx.reply(`Удалено: ${matches[0].name}.`);
 });
 
 bot.command('today', (ctx) => {
@@ -240,7 +250,7 @@ const BOT_COMMANDS = [
   { command: 'add', description: 'Добавить сотрудника: Имя Фамилия ДД.ММ.ГГГГ' },
   { command: 'import', description: 'Добавить сразу несколько (список с новой строки)' },
   { command: 'list', description: 'Показать все сохранённые дни рождения' },
-  { command: 'remove', description: 'Удалить запись по ID (см. /list)' },
+  { command: 'remove', description: 'Удалить запись по имени' },
   { command: 'today', description: 'У кого сегодня день рождения' },
   { command: 'greetings', description: 'Показать тексты поздравлений' },
   { command: 'setgreeting', description: 'Изменить текст поздравления по номеру' },
