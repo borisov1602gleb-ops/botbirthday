@@ -104,6 +104,14 @@ bot.command('today', (ctx) => {
   ctx.reply('Сегодня день рождения у: ' + matches.map((b) => b.name).join(', '));
 });
 
+bot.command('test', async (ctx) => {
+  await ctx.reply('Запускаю проверку напоминаний прямо сейчас (не жду 09:00)...');
+  await checkAndSendReminders(bot);
+  await ctx.reply(
+    'Готово. Если выше ничего не появилось — значит ни у кого в /list нет дня рождения сегодня или через 3 дня (с сегодняшним годом это не связано, проверяются только число и месяц).'
+  );
+});
+
 bot.command('greetings', (ctx) => {
   const overrides = db.getGreetingOverrides(ctx.chat.id);
   const lines = TEMPLATES.map((t, i) => {
@@ -178,6 +186,7 @@ const BOT_COMMANDS = [
   { command: 'setgreeting', description: 'Изменить текст поздравления по номеру' },
   { command: 'resetgreeting', description: 'Вернуть исходный текст поздравления' },
   { command: 'members', description: 'Кого бот упомянёт вместе с напоминанием' },
+  { command: 'test', description: 'Проверить напоминания прямо сейчас' },
   { command: 'help', description: 'Справка по командам' },
 ];
 
