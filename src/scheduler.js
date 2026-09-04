@@ -4,9 +4,18 @@ const { todayInTZ, addDays, isoDate, formatDate } = require('./dates');
 const { randomGreeting } = require('./greetings');
 
 const TZ = process.env.TZ || 'Europe/Moscow';
+const REMIND_DAYS_BEFORE = Number(process.env.REMIND_DAYS_BEFORE || 5);
 
 function escapeHtml(text) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function pluralDays(n) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'день';
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'дня';
+  return 'дней';
 }
 
 function buildMentions(members) {
@@ -18,7 +27,7 @@ function buildMentions(members) {
 
 async function checkAndSendReminders(bot) {
   const today = todayInTZ(TZ);
-  const in3Days = addDays(today, 3);
+  const reminderDate = addDays(today, REMIND_DAYS_BEFORE);
   const sentOn = isoDate(today);
 
   for (const chatId of db.getAllChats()) {
@@ -28,7 +37,7 @@ async function checkAndSendReminders(bot) {
 
     for (const b of birthdays) {
       const isToday = b.day === today.day && b.month === today.month;
-      const isIn3Days = b.day === in3Days.day && b.month === in3Days.month;
+      const isReminderDay = b.day === reminderDate.day && b.month === reminderDate.month;
 
       if (isToday && !db.wasReminderSent(b.id, 'today', sentOn)) {
         await bot.telegram.sendMessage(chatId, randomGreeting(b.name, null, overrides));
@@ -38,10 +47,10 @@ async function checkAndSendReminders(bot) {
         db.markReminderSent(chatId, b.id, 'today', sentOn);
       }
 
-      if (isIn3Days && !db.wasReminderSent(b.id, 'soon', sentOn)) {
+      if (isReminderDay && !db.wasReminderSent(b.id, 'soon', sentOn)) {
         await bot.telegram.sendMessage(
           chatId,
-          `📅 Через 3 дня (${formatDate(b.day, b.month)}) день рождения у ${b.name}.`
+          `📅 Через ${REMIND_DAYS_BEFORE} ${pluralDays(REMIND_DAYS_BEFORE)} (${formatDate(b.day, b.month)}) день рождения у ${b.name}.`
         );
         if (mentions) {
           await bot.telegram.sendMessage(chatId, mentions, { parse_mode: 'HTML' });
