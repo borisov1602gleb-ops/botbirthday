@@ -53,4 +53,14 @@ function age(birthYear, currentYear) {
   return currentYear - birthYear;
 }
 
-module.exports = { parseDate, formatDate, todayInTZ, addDays, isoDate, age };
+// Сколько дней осталось от today {day,month,year} до ближайшего { day, month }.
+function daysUntil(today, target) {
+  const todayDate = new Date(Date.UTC(today.year, today.month - 1, today.day));
+  let targetDate = new Date(Date.UTC(today.year, target.month - 1, target.day));
+  if (targetDate < todayDate) {
+    targetDate = new Date(Date.UTC(today.year + 1, target.month - 1, target.day));
+  }
+  return Math.round((targetDate - todayDate) / (1000 * 60 * 60 * 24));
+}
+
+module.exports = { parseDate, formatDate, todayInTZ, addDays, isoDate, age, daysUntil };

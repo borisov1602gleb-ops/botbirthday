@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const db = require('./db');
-const { parseDate, formatDate } = require('./dates');
+const { parseDate, formatDate, todayInTZ, daysUntil } = require('./dates');
 const { startScheduler, checkAndSendReminders } = require('./scheduler');
 const { TEMPLATES } = require('./greetings');
 
@@ -73,9 +73,16 @@ bot.command('list', (ctx) => {
     return ctx.reply('Список пуст. Добавьте сотрудника командой /add.');
   }
 
-  const lines = birthdays.map(
-    (b) => `#${b.id} — ${b.name} — ${formatDate(b.day, b.month, b.year)}`
+  const today = todayInTZ(process.env.TZ || 'Europe/Moscow');
+  const sorted = [...birthdays].sort(
+    (a, b) => daysUntil(today, a) - daysUntil(today, b)
   );
+
+  const lines = sorted.map((b) => {
+    const days = daysUntil(today, b);
+    const daysText = days === 0 ? 'сегодня!' : `через ${days} дн.`;
+    return `#${b.id} — ${b.name} — ${formatDate(b.day, b.month, b.year)} (${daysText})`;
+  });
   ctx.reply(lines.join('\n'));
 });
 
@@ -91,7 +98,6 @@ bot.command('remove', (ctx) => {
 });
 
 bot.command('today', (ctx) => {
-  const { todayInTZ } = require('./dates');
   const today = todayInTZ(process.env.TZ || 'Europe/Moscow');
   const matches = db
     .listBirthdays(ctx.chat.id)
