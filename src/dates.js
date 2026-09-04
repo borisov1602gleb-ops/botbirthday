@@ -53,14 +53,28 @@ function age(birthYear, currentYear) {
   return currentYear - birthYear;
 }
 
+// Год ближайшего наступления даты { day, month } считая от today {day,month,year}.
+function nextOccurrenceYear(today, target) {
+  const beforeToday =
+    target.month < today.month || (target.month === today.month && target.day < today.day);
+  return beforeToday ? today.year + 1 : today.year;
+}
+
 // Сколько дней осталось от today {day,month,year} до ближайшего { day, month }.
 function daysUntil(today, target) {
   const todayDate = new Date(Date.UTC(today.year, today.month - 1, today.day));
-  let targetDate = new Date(Date.UTC(today.year, target.month - 1, target.day));
-  if (targetDate < todayDate) {
-    targetDate = new Date(Date.UTC(today.year + 1, target.month - 1, target.day));
-  }
+  const targetYear = nextOccurrenceYear(today, target);
+  const targetDate = new Date(Date.UTC(targetYear, target.month - 1, target.day));
   return Math.round((targetDate - todayDate) / (1000 * 60 * 60 * 24));
 }
 
-module.exports = { parseDate, formatDate, todayInTZ, addDays, isoDate, age, daysUntil };
+module.exports = {
+  parseDate,
+  formatDate,
+  todayInTZ,
+  addDays,
+  isoDate,
+  age,
+  daysUntil,
+  nextOccurrenceYear,
+};

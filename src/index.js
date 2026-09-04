@@ -1,7 +1,15 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const db = require('./db');
-const { parseDate, formatDate, todayInTZ, daysUntil } = require('./dates');
+const { parseDate, formatDate, todayInTZ, daysUntil, nextOccurrenceYear, age } = require('./dates');
+
+function ageLabel(today, b) {
+  const turningYear = nextOccurrenceYear(today, b);
+  const years = age(b.year, turningYear);
+  if (!years) return '';
+  const jubilee = years % 5 === 0 ? ', юбилей 🎊' : '';
+  return `, исполнится ${years}${jubilee}`;
+}
 const { startScheduler, checkAndSendReminders } = require('./scheduler');
 const { TEMPLATES } = require('./greetings');
 
@@ -81,7 +89,7 @@ bot.command('list', (ctx) => {
   const lines = sorted.map((b) => {
     const days = daysUntil(today, b);
     const daysText = days === 0 ? 'сегодня!' : `через ${days} дн.`;
-    return `#${b.id} — ${b.name} — ${formatDate(b.day, b.month, b.year)} (${daysText})`;
+    return `#${b.id} — ${b.name} — ${formatDate(b.day, b.month, b.year)} (${daysText}${ageLabel(today, b)})`;
   });
   ctx.reply(lines.join('\n'));
 });
@@ -107,7 +115,8 @@ bot.command('today', (ctx) => {
     return ctx.reply('Сегодня дней рождения нет.');
   }
 
-  ctx.reply('Сегодня день рождения у: ' + matches.map((b) => b.name).join(', '));
+  const lines = matches.map((b) => `${b.name}${ageLabel(today, b)}`);
+  ctx.reply('Сегодня день рождения у: ' + lines.join(', '));
 });
 
 bot.command('test', async (ctx) => {

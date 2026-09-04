@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const db = require('./db');
-const { todayInTZ, addDays, isoDate, formatDate, age } = require('./dates');
+const { todayInTZ, addDays, isoDate, formatDate } = require('./dates');
 const { randomGreeting } = require('./greetings');
 
 const TZ = process.env.TZ || 'Europe/Moscow';
@@ -31,8 +31,7 @@ async function checkAndSendReminders(bot) {
       const isIn3Days = b.day === in3Days.day && b.month === in3Days.month;
 
       if (isToday && !db.wasReminderSent(b.id, 'today', sentOn)) {
-        const years = age(b.year, today.year);
-        await bot.telegram.sendMessage(chatId, randomGreeting(b.name, years, overrides));
+        await bot.telegram.sendMessage(chatId, randomGreeting(b.name, null, overrides));
         if (mentions) {
           await bot.telegram.sendMessage(chatId, mentions, { parse_mode: 'HTML' });
         }
