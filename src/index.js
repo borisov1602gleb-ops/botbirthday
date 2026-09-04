@@ -25,6 +25,7 @@ const HELP_TEXT = `Я напоминаю о днях рождения сотру
 
 Команды:
 /add Имя Фамилия ДД.ММ.ГГГГ — добавить сотрудника (год можно не указывать: ДД.ММ)
+/import — добавить сразу несколько (каждый с новой строки после команды)
 /list — список всех сохранённых дней рождения
 /remove ID — удалить запись (ID смотрите в /list)
 /today — у кого сегодня день рождения
@@ -48,31 +49,74 @@ bot.use((ctx, next) => {
 bot.start((ctx) => ctx.reply(HELP_TEXT));
 bot.help((ctx) => ctx.reply(HELP_TEXT));
 
+// Разбирает строку "Имя Фамилия ДД.ММ.ГГГГ" -> { name, parsed } либо { error }.
+function parseNameAndDate(line) {
+  const tokens = line.trim().split(/\s+/);
+  if (tokens.length < 2) return { error: 'слишком короткая строка' };
+
+  const lastToken = tokens[tokens.length - 1];
+  const parsed = parseDate(lastToken);
+  if (!parsed) return { error: 'не распознана дата (нужно ДД.ММ или ДД.ММ.ГГГГ последним значением)' };
+
+  const name = tokens.slice(0, -1).join(' ').trim();
+  if (!name) return { error: 'не указано имя' };
+
+  return { name, parsed };
+}
+
 bot.command('add', (ctx) => {
   const text = ctx.message.text.replace(/^\/add(@\w+)?\s*/, '').trim();
   if (!text) {
     return ctx.reply('Формат: /add Имя Фамилия ДД.ММ.ГГГГ\nПример: /add Иван Петров 15.03.1990');
   }
 
-  const tokens = text.split(/\s+/);
-  const lastToken = tokens[tokens.length - 1];
-  const parsed = parseDate(lastToken);
-
-  if (!parsed) {
+  const result = parseNameAndDate(text);
+  if (result.error) {
     return ctx.reply(
-      'Не удалось распознать дату. Укажите её последним значением в формате ДД.ММ или ДД.ММ.ГГГГ.\nПример: /add Иван Петров 15.03.1990'
+      `Не удалось разобрать: ${result.error}.\nПример: /add Иван Петров 15.03.1990`
     );
   }
 
-  const name = tokens.slice(0, -1).join(' ').trim();
-  if (!name) {
-    return ctx.reply('Укажите имя сотрудника перед датой.\nПример: /add Иван Петров 15.03.1990');
-  }
-
+  const { name, parsed } = result;
   const id = db.addBirthday(ctx.chat.id, name, parsed.day, parsed.month, parsed.year);
   ctx.reply(
     `Добавлено: ${name} — ${formatDate(parsed.day, parsed.month, parsed.year)} (ID ${id})`
   );
+});
+
+bot.command('import', (ctx) => {
+  const text = ctx.message.text.replace(/^\/import(@\w+)?\s*/, '');
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  if (lines.length === 0) {
+    return ctx.reply(
+      'Пришлите список — каждый сотрудник с новой строки, дата последним значением:\n\n' +
+        '/import\nИван Иванов 15.03.1990\nМария Петрова 22.07\nПётр Сидоров 01.01.1985'
+    );
+  }
+
+  const added = [];
+  const errors = [];
+
+  for (const line of lines) {
+    const result = parseNameAndDate(line);
+    if (result.error) {
+      errors.push(`«${line}» — ${result.error}`);
+      continue;
+    }
+    const { name, parsed } = result;
+    db.addBirthday(ctx.chat.id, name, parsed.day, parsed.month, parsed.year);
+    added.push(`${name} — ${formatDate(parsed.day, parsed.month, parsed.year)}`);
+  }
+
+  let reply = '';
+  if (added.length > 0) {
+    reply += `Добавлено (${added.length}):\n${added.join('\n')}`;
+  }
+  if (errors.length > 0) {
+    reply += `${reply ? '\n\n' : ''}Не удалось разобрать (${errors.length}):\n${errors.join('\n')}`;
+  }
+  ctx.reply(reply);
 });
 
 bot.command('list', (ctx) => {
@@ -194,6 +238,7 @@ bot.command('members', (ctx) => {
 
 const BOT_COMMANDS = [
   { command: 'add', description: 'Добавить сотрудника: Имя Фамилия ДД.ММ.ГГГГ' },
+  { command: 'import', description: 'Добавить сразу несколько (список с новой строки)' },
   { command: 'list', description: 'Показать все сохранённые дни рождения' },
   { command: 'remove', description: 'Удалить запись по ID (см. /list)' },
   { command: 'today', description: 'У кого сегодня день рождения' },
